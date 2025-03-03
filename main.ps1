@@ -48,8 +48,8 @@ function Update-Scripts {
             # Force clean any local changes to ensure clean update
             git reset --hard HEAD
             git clean -fd
-            # Pull latest changes
-            git pull origin main
+            # Pull latest changes with allow-unrelated-histories flag to handle disconnected repositories
+            git pull origin main --allow-unrelated-histories
         } else {
             git clone $repoUrl .
         }

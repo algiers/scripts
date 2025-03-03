@@ -317,7 +317,7 @@ function Check-USBPerformance {
             Write-Host "`nInformations sur les controleurs USB:" -ForegroundColor Green
             
             foreach ($controller in $usbControllers) {
-                Write-Host "\nControleur: $($controller.Name)" -ForegroundColor Cyan
+                Write-Host "`nControleur: $($controller.Name)" -ForegroundColor Cyan
                 Write-Host "  - Fabricant: $($controller.Manufacturer)" -ForegroundColor White
                 Write-Host "  - Description: $($controller.Description)" -ForegroundColor White
                 Write-Host "  - ID PNP: $($controller.PNPDeviceID)" -ForegroundColor White
@@ -347,7 +347,7 @@ function Check-USBPerformance {
             Write-Host "`nInformations sur les hubs USB:" -ForegroundColor Green
             
             foreach ($hub in $usbHubs) {
-                Write-Host "\nHub: $($hub.FriendlyName)" -ForegroundColor Cyan
+                Write-Host "`nHub: $($hub.FriendlyName)" -ForegroundColor Cyan
                 Write-Host "  - Etat: $($hub.Status)" -ForegroundColor White
             }
         }
@@ -380,7 +380,7 @@ function Generate-USBDiagnosticReport {
         
         if ($usbControllers) {
             foreach ($controller in $usbControllers) {
-                "\nControleur: $($controller.Name)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+                "`nControleur: $($controller.Name)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
                 "  - Fabricant: $($controller.Manufacturer)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
                 "  - Description: $($controller.Description)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
                 "  - ID PNP: $($controller.PNPDeviceID)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
@@ -395,7 +395,7 @@ function Generate-USBDiagnosticReport {
         
         if ($usbDevices) {
             foreach ($device in $usbDevices) {
-                "\nPeripherique: $($device.FriendlyName)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+                "`nPeripherique: $($device.FriendlyName)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
                 "  - Etat: $($device.Status)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
                 "  - ID Instance: $($device.InstanceId)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
             }
@@ -409,7 +409,7 @@ function Generate-USBDiagnosticReport {
         
         if ($problemDevices) {
             foreach ($device in $problemDevices) {
-                "\nProbleme detecte: $($device.FriendlyName)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+                "`nProbleme detecte: $($device.FriendlyName)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
                 "  - Etat: $($device.Status)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
                 "  - ID Instance: $($device.InstanceId)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
             }
