@@ -436,7 +436,7 @@ function Run-CompleteDiagnostic {
         $systemInfo | Format-List | Out-String | Out-File -FilePath $reportFile -Append
         
         Write-Host "2. Analyse des contrôleurs USB..." -ForegroundColor Yellow
-        "-- CONTROLEURS USB --" | Out-File -FilePath $reportFile -Append
+        "-- CONTRÔLEURS USB --" | Out-File -FilePath $reportFile -Append
         $usbControllers = Get-WmiObject -Class Win32_USBController
         $usbControllers | Format-List Name, DeviceID, Status, Manufacturer | Out-String | Out-File -FilePath $reportFile -Append
         
