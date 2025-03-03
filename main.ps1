@@ -75,9 +75,9 @@ Update-Scripts
 do {
     $availableScripts = Get-ChildItem -Path "$scriptsLocalPath" -Filter "*.ps1" | 
                         Where-Object { $_.Name -ne "main.ps1" } | 
-                        ForEach-Object {$_.BaseName}
+                        Select-Object -ExpandProperty FullName
 
-    Show-ScriptMenu $availableScripts
+    Show-ScriptMenu ($availableScripts | ForEach-Object { Split-Path $_ -Leaf })
 
     try {
         $choice = Read-Host "Enter script number (Q to quit, U to update)"
@@ -95,11 +95,10 @@ do {
                 if ([int]::TryParse($choice, [ref]$null)) {
                     $choiceNum = [int]$choice
                     if ($choiceNum -ge 1 -and $choiceNum -le $availableScripts.Count) {
-                        $selectedScript = $availableScripts[$choiceNum - 1]
-                        $scriptPath = "$scriptsLocalPath\$selectedScript.ps1"
+                        $scriptPath = $availableScripts[$choiceNum - 1]
 
                         if (Test-Path $scriptPath) {
-                            Write-Host "Executing: $selectedScript" -ForegroundColor Cyan
+                            Write-Host "Executing: $(Split-Path $scriptPath -Leaf)" -ForegroundColor Cyan
                             $arguments = Read-Host "Enter script arguments (e.g., -Param1 Value1), or press Enter to run without arguments"
 
                             if ($arguments) {
