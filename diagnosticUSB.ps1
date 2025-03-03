@@ -244,4 +244,210 @@ function Disable-USBPowerSaving {
             Write-Host "3. Application des modifications au plan d'alimentation..." -ForegroundColor Yellow
             powercfg -S $powerPlanGuid
             
-            Write-Host "`nL'economie d'energie pour les peripheriques USB a ete desactivee avec suc
+            Write-Host "`nL'economie d'energie pour les peripheriques USB a ete desactivee avec succes!" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "Erreur lors de la configuration du plan d'alimentation: $_" -ForegroundColor Red
+        }
+    }
+    catch {
+        Write-Host "Erreur lors de la desactivation de l'economie d'energie: $_" -ForegroundColor Red
+    }
+    
+    Read-Host "Appuyez sur Entree pour continuer"
+}
+
+function Clean-USBDriverCache {
+    Write-Host "ATTENTION: Cette operation va nettoyer le cache des pilotes USB" -ForegroundColor Red
+    Write-Host "Un redemarrage sera necessaire pour terminer l'operation." -ForegroundColor Yellow
+    $confirm = Read-Host "Etes-vous sur de vouloir continuer? (O/N)"
+    
+    if ($confirm -ne "O" -and $confirm -ne "o") {
+        return
+    }
+    
+    Write-Host "`nNettoyage du cache des pilotes USB..." -ForegroundColor Cyan
+    
+    try {
+        # Arreter le service Plug and Play
+        Write-Host "1. Arret du service Plug and Play..." -ForegroundColor Yellow
+        Stop-Service -Name "PlugPlay" -Force -ErrorAction SilentlyContinue
+        
+        # Supprimer les fichiers de cache
+        Write-Host "2. Suppression des fichiers de cache..." -ForegroundColor Yellow
+        
+        $infCachePath = "$env:SystemRoot\inf"
+        if (Test-Path $infCachePath) {
+            # Supprimer les fichiers de cache USB
+            Remove-Item -Path "$infCachePath\usb*.*" -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path "$infCachePath\setupapi.dev.log" -Force -ErrorAction SilentlyContinue
+        }
+        
+        # Nettoyer le registre
+        Write-Host "3. Nettoyage du registre..." -ForegroundColor Yellow
+        
+        # Redemarrer le service Plug and Play
+        Write-Host "4. Redemarrage du service Plug and Play..." -ForegroundColor Yellow
+        Start-Service -Name "PlugPlay" -ErrorAction SilentlyContinue
+        
+        Write-Host "`nNettoyage du cache des pilotes USB termine!" -ForegroundColor Green
+        Write-Host "Un redemarrage est necessaire pour appliquer les changements." -ForegroundColor Yellow
+        
+        $rebootNow = Read-Host "Voulez-vous redemarrer maintenant? (O/N)"
+        if ($rebootNow -eq "O" -or $rebootNow -eq "o") {
+            Restart-Computer -Force
+        }
+    }
+    catch {
+        Write-Host "Erreur lors du nettoyage du cache des pilotes: $_" -ForegroundColor Red
+    }
+    
+    Read-Host "Appuyez sur Entree pour continuer"
+}
+
+function Check-USBPerformance {
+    Write-Host "Verification des performances du controleur USB..." -ForegroundColor Cyan
+    
+    try {
+        Write-Host "1. Analyse des controleurs USB..." -ForegroundColor Yellow
+        
+        $usbControllers = Get-WmiObject -Class Win32_USBController -ErrorAction SilentlyContinue
+        
+        if ($usbControllers) {
+            Write-Host "`nInformations sur les controleurs USB:" -ForegroundColor Green
+            
+            foreach ($controller in $usbControllers) {
+                Write-Host "\nControleur: $($controller.Name)" -ForegroundColor Cyan
+                Write-Host "  - Fabricant: $($controller.Manufacturer)" -ForegroundColor White
+                Write-Host "  - Description: $($controller.Description)" -ForegroundColor White
+                Write-Host "  - ID PNP: $($controller.PNPDeviceID)" -ForegroundColor White
+                
+                # Verifier la version USB
+                $usbVersion = "Inconnue"
+                if ($controller.Name -match "3\.0|3\.1|3\.2") {
+                    $usbVersion = "USB 3.x"
+                } elseif ($controller.Name -match "2\.0") {
+                    $usbVersion = "USB 2.0"
+                } elseif ($controller.Name -match "1\.1") {
+                    $usbVersion = "USB 1.1"
+                }
+                
+                Write-Host "  - Version USB: $usbVersion" -ForegroundColor White
+            }
+        } else {
+            Write-Host "Aucun controleur USB trouve." -ForegroundColor Red
+        }
+        
+        Write-Host "`n2. Verification des peripheriques connectes..." -ForegroundColor Yellow
+        
+        $usbDevices = Get-PnpDevice -Class USB -ErrorAction SilentlyContinue
+        $usbHubs = $usbDevices | Where-Object { $_.FriendlyName -match "Hub|Concentrateur" }
+        
+        if ($usbHubs) {
+            Write-Host "`nInformations sur les hubs USB:" -ForegroundColor Green
+            
+            foreach ($hub in $usbHubs) {
+                Write-Host "\nHub: $($hub.FriendlyName)" -ForegroundColor Cyan
+                Write-Host "  - Etat: $($hub.Status)" -ForegroundColor White
+            }
+        }
+        
+        Write-Host "`nVerification des performances terminee!" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Erreur lors de la verification des performances: $_" -ForegroundColor Red
+    }
+    
+    Read-Host "Appuyez sur Entree pour continuer"
+}
+
+function Generate-USBDiagnosticReport {
+    $reportPath = "$env:USERPROFILE\Desktop\Rapport_Diagnostic_USB_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
+    
+    Write-Host "Generation d'un rapport de diagnostic USB complet..." -ForegroundColor Cyan
+    Write-Host "Le rapport sera enregistre sur le Bureau: $(Split-Path $reportPath -Leaf)" -ForegroundColor Yellow
+    
+    try {
+        # Creer le fichier de rapport
+        "RAPPORT DE DIAGNOSTIC USB" | Out-File -FilePath $reportPath -Encoding UTF8
+        "Date: $(Get-Date)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+        "Ordinateur: $env:COMPUTERNAME" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+        "-------------------------------------------" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+        
+        # Collecter les informations sur les controleurs USB
+        "`nCONTROLEURS USB:" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+        $usbControllers = Get-WmiObject -Class Win32_USBController -ErrorAction SilentlyContinue
+        
+        if ($usbControllers) {
+            foreach ($controller in $usbControllers) {
+                "\nControleur: $($controller.Name)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+                "  - Fabricant: $($controller.Manufacturer)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+                "  - Description: $($controller.Description)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+                "  - ID PNP: $($controller.PNPDeviceID)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+            }
+        } else {
+            "Aucun controleur USB trouve." | Out-File -FilePath $reportPath -Append -Encoding UTF8
+        }
+        
+        # Collecter les informations sur les peripheriques USB
+        "`nPERIPHERIQUES USB:" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+        $usbDevices = Get-PnpDevice -Class USB -ErrorAction SilentlyContinue
+        
+        if ($usbDevices) {
+            foreach ($device in $usbDevices) {
+                "\nPeripherique: $($device.FriendlyName)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+                "  - Etat: $($device.Status)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+                "  - ID Instance: $($device.InstanceId)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+            }
+        } else {
+            "Aucun peripherique USB trouve." | Out-File -FilePath $reportPath -Append -Encoding UTF8
+        }
+        
+        # Collecter les informations sur les problemes USB
+        "`nPROBLEMES USB DETECTES:" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+        $problemDevices = Get-PnpDevice -Class USB | Where-Object { $_.Status -ne "OK" }
+        
+        if ($problemDevices) {
+            foreach ($device in $problemDevices) {
+                "\nProbleme detecte: $($device.FriendlyName)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+                "  - Etat: $($device.Status)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+                "  - ID Instance: $($device.InstanceId)" | Out-File -FilePath $reportPath -Append -Encoding UTF8
+            }
+        } else {
+            "Aucun probleme USB detecte." | Out-File -FilePath $reportPath -Append -Encoding UTF8
+        }
+        
+        Write-Host "`nRapport de diagnostic genere avec succes!" -ForegroundColor Green
+        Write-Host "Emplacement: $reportPath" -ForegroundColor Cyan
+        
+        # Ouvrir le rapport
+        $openReport = Read-Host "Voulez-vous ouvrir le rapport maintenant? (O/N)"
+        if ($openReport -eq "O" -or $openReport -eq "o") {
+            Invoke-Item $reportPath
+        }
+    }
+    catch {
+        Write-Host "Erreur lors de la generation du rapport: $_" -ForegroundColor Red
+    }
+    
+    Read-Host "Appuyez sur Entree pour continuer"
+}
+
+# Boucle principale
+do {
+    Show-Menu
+    $choice = Read-Host "Entrez votre choix"
+    
+    switch ($choice) {
+        "1" { List-USBDevices }
+        "2" { Reset-SpecificUSBDevice }
+        "3" { Reset-AllUSBControllers }
+        "4" { Disable-USBPowerSaving }
+        "5" { Clean-USBDriverCache }
+        "6" { Check-USBPerformance }
+        "7" { Generate-USBDiagnosticReport }
+        "q" { break }
+        "Q" { break }
+        default { Write-Host "`nOption invalide. Veuillez reessayer." -ForegroundColor Red; Start-Sleep -Seconds 2 }
+    }
+} while ($choice -ne "q" -and $choice -ne "Q")

@@ -28,16 +28,41 @@ function Update-Scripts {
     }
 
     try {
+        # Close any open file handles in the scripts directory to prevent file locking issues
+        if (Test-Path $scriptsLocalPath) {
+            Write-Host "Preparing files for update..." -ForegroundColor Yellow
+            # Force garbage collection to release any file handles
+            [System.GC]::Collect()
+            [System.GC]::WaitForPendingFinalizers()
+            
+            # Get existing script files before update
+            $existingFiles = Get-ChildItem -Path $scriptsLocalPath -Filter "*.ps1" -File | Select-Object -ExpandProperty FullName
+        }
+        
         # Configure Git safe directory
         git config --global --add safe.directory $scriptsLocalPath
         
         Push-Location $scriptsLocalPath
 
         if (Test-Path .git) {
+            # Force clean any local changes to ensure clean update
+            git reset --hard HEAD
+            git clean -fd
+            # Pull latest changes
             git pull origin main
         } else {
             git clone $repoUrl .
         }
+        
+        # Verify file updates were successful
+        $updatedFiles = Get-ChildItem -Path $scriptsLocalPath -Filter "*.ps1" -File | Select-Object -ExpandProperty FullName
+        $updatedCount = ($updatedFiles | Where-Object { $existingFiles -notcontains $_ }).Count + 
+                       ($existingFiles | Where-Object { $updatedFiles -notcontains $_ }).Count
+        
+        if ($updatedCount -gt 0) {
+            Write-Host "$updatedCount files were added or replaced." -ForegroundColor Green
+        }
+        
         Write-Host "Scripts updated successfully." -ForegroundColor Green
     }
     catch {
