@@ -96,6 +96,7 @@ do {
                     $choiceNum = [int]$choice
                     if ($choiceNum -ge 1 -and $choiceNum -le $availableScripts.Count) {
                         $scriptPath = $availableScripts[$choiceNum - 1]
+                        # Ensure we're using the full path that was retrieved earlier
 
                         if (Test-Path $scriptPath) {
                             Write-Host "Executing: $(Split-Path $scriptPath -Leaf)" -ForegroundColor Cyan
