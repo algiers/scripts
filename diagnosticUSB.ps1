@@ -385,7 +385,7 @@ function Check-USBControllerPerformance {
         }
         
         # Vérification des versions USB
-        $usb3Controllers = $usbControllers | Where-Object { $_.Name -match "(3\.0|3\.1|3\.2|SuperSpeed)" }
+        $usb3Controllers = $usbControllers | Where-Object { $_.Name -match "3\.0|3\.1|3\.2|SuperSpeed" }
         Write-Host "`nVersions USB détectées:" -ForegroundColor Green
         
         if ($usb3Controllers.Count -gt 0) {
@@ -479,7 +479,7 @@ function Run-CompleteDiagnostic {
             $recommendations += "- Réinitialisez les périphériques problématiques détectés."
         }
         
-        $usb3Controllers = $usbControllers | Where-Object { $_.Name -match "(3\.0|3\.1|3\.2|SuperSpeed)" }
+        $usb3Controllers = $usbControllers | Where-Object { $_.Name -match "3\.0|3\.1|3\.2|SuperSpeed" }
         if ($usb3Controllers.Count -gt 0) {
             $recommendations += "- Pour les transferts rapides, utilisez les ports USB 3.0/3.1/3.2 (généralement de couleur bleue)."
         }
