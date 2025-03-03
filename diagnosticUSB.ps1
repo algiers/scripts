@@ -463,7 +463,7 @@ function Run-CompleteDiagnostic {
         $usbDevices | Format-Table FriendlyName, Status, InstanceId -AutoSize | Out-String | Out-File -FilePath $reportFile -Append
         
         Write-Host "4. Recherche des périphériques problématiques..." -ForegroundColor Yellow
-        "-- PÉRIPHÉRIQUES PROBLEMATIQUES --" | Out-File -FilePath $reportFile -Append
+        "-- PERIPHERIQUES PROBLEMATIQUES --" | Out-File -FilePath $reportFile -Append
         $problemDevices = $usbDevices | Where-Object { $_.Status -ne "OK" }
         if ($problemDevices.Count -gt 0) {
             $problemDevices | Format-Table FriendlyName, Status, InstanceId -AutoSize | Out-String | Out-File -FilePath $reportFile -Append
@@ -472,14 +472,14 @@ function Run-CompleteDiagnostic {
         }
         
         Write-Host "5. Analyse des paramètres d'alimentation USB..." -ForegroundColor Yellow
-        "-- PARAMÈTRES D'ALIMENTATION USB --" | Out-File -FilePath $reportFile -Append
+        "-- PARAMETRES D'ALIMENTATION USB --" | Out-File -FilePath $reportFile -Append
         
         # Vérifier la politique d'alimentation USB
         $activePowerPlan = (Get-WmiObject -Class Win32_PowerPlan -Namespace root\cimv2\power -Filter "IsActive='True'").ElementName
         "Plan d'alimentation actif: $activePowerPlan" | Out-File -FilePath $reportFile -Append
         
         Write-Host "6. Analyse des journaux d'événements..." -ForegroundColor Yellow
-        "-- ÉVÉNEMENTS USB RÉCENTS --" | Out-File -FilePath $reportFile -Append
+        "-- EVENEMENTS USB RECENTS --" | Out-File -FilePath $reportFile -Append
         $usbEvents = Get-WinEvent -LogName System -MaxEvents 50 | Where-Object { $_.Message -match "USB" }
         if ($usbEvents.Count -gt 0) {
             $usbEvents | Select-Object TimeCreated, Id, LevelDisplayName, Message | Format-Table -AutoSize | Out-String | Out-File -FilePath $reportFile -Append
