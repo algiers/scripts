@@ -113,6 +113,8 @@ do {
                     } else {
                         Write-Host "Invalid selection." -ForegroundColor Yellow
                     }
+                } else {
+                    Write-Host "Invalid input. Please enter a number." -ForegroundColor Yellow
                 }
             }
         }
