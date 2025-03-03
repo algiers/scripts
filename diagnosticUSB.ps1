@@ -370,51 +370,68 @@ function Check-USBControllerPerformance {
         
         # Utilisation de PowerShell pour obtenir des informations sur les périphériques USB
         $usbDevices = Get-PnpDevice -Class USB | Where-Object { $_.Status -eq "OK" }
-        
-        Write-Host "`nRésumé des périphériques USB:" -ForegroundColor Green
-        Write-Host "Total des contrôleurs USB: $($usbControllers.Count)" -ForegroundColor Cyan
-        Write-Host "Total des périphériques USB connectés: $($usbDevices.Count)" -ForegroundColor Cyan
-        
-        # Détection des problèmes potentiels
-        $errorDevices = Get-PnpDevice -Class USB | Where-Object { $_.Status -ne "OK" }
-        if ($errorDevices.Count -gt 0) {
-            Write-Host "`nPériphériques USB problématiques détectés:" -ForegroundColor Red
-            foreach ($device in $errorDevices) {
-                Write-Host " - $($device.FriendlyName) (État: $($device.Status))" -ForegroundColor Yellow
-            }
-        }
-        
-        # Vérification des versions USB
-        $usb3Controllers = $usbControllers | Where-Object { $_.Name -match "3\.0|3\.1|3\.2|SuperSpeed" }
-        Write-Host "`nVersions USB détectées:" -ForegroundColor Green
-        
-        if ($usb3Controllers.Count -gt 0) {
-            Write-Host " - USB 3.0/3.1/3.2 disponible (SuperSpeed)" -ForegroundColor Cyan
+        $usbDevices | Format-Table FriendlyName, Status, InstanceId -AutoSize | Out-String | Out-File -FilePath $reportFile -Append
+        $problemDevices = $usbDevices | Where-Object { $_.Status -ne "OK" }
+        if ($problemDevices.Count -gt 0) {
+            $problemDevices | Format-Table FriendlyName, Status, InstanceId -AutoSize | Out-String | Out-File -FilePath $reportFile -Append
         } else {
-            Write-Host " - USB 3.0/3.1/3.2 non détecté" -ForegroundColor Yellow
+            "Aucun périphérique problématique détecté." | Out-File -FilePath $reportFile -Append
         }
         
-        Write-Host " - USB 2.0 disponible" -ForegroundColor Cyan
+        Write-Host "5. Analyse des paramètres d'alimentation USB..." -ForegroundColor Yellow
+        "-- PARAMETRES D'ALIMENTATION USB --" | Out-File -FilePath $reportFile -Append
+        $activePowerPlan = (Get-WmiObject -Class Win32_PowerPlan -Namespace root\cimv2\power -Filter "IsActive='True'").ElementName
+        "Plan d'alimentation actif: $activePowerPlan" | Out-File -FilePath $reportFile -Append
         
-        # Recommandations
-        Write-Host "`nRecommandations:" -ForegroundColor Magenta
-        
-        if ($errorDevices.Count -gt 0) {
-            Write-Host " - Réinitialisez les périphériques problématiques" -ForegroundColor Yellow
+        Write-Host "6. Analyse des journaux d'événements..." -ForegroundColor Yellow
+        "-- EVENEMENTS USB RECENTS --" | Out-File -FilePath $reportFile -Append
+        $usbEvents = Get-WinEvent -LogName System -MaxEvents 50 | Where-Object { $_.Message -match "USB" }
+        if ($usbEvents.Count -gt 0) {
+            $usbEvents | Select-Object TimeCreated, Id, LevelDisplayName, Message | Format-Table -AutoSize | Out-String | Out-File -FilePath $reportFile -Append
+        } else {
+            "Aucun événement USB récent trouvé." | Out-File -FilePath $reportFile -Append
         }
         
+        Write-Host "7. Génération des recommandations..." -ForegroundColor Yellow
+        "-- RECOMMANDATIONS --" | Out-File -FilePath $reportFile -Append
+        
+        $recommendations = @()
+        
+        if ($problemDevices.Count -gt 0) {
+            $recommendations += "- Réinitialisez les périphériques problématiques détectés."
+        }
+        $usb3Controllers = $usbControllers | Where-Object { $_.Name -match "3\.0|3\.1|3\.2|SuperSpeed" }
         if ($usb3Controllers.Count -gt 0) {
-            Write-Host " - Pour les transferts rapides, utilisez les ports USB 3.0/3.1/3.2 (généralement bleus)" -ForegroundColor Cyan
+            $recommendations += "- Pour les transferts rapides, utilisez les ports USB 3.0/3.1/3.2 (généralement de couleur bleue)."
+        }
+        $recommendations += "- Évitez de connecter trop de périphériques sur le même contrôleur USB."
+        $recommendations += "- Utilisez un hub USB alimenté pour les périphériques gourmands en énergie."
+        $recommendations += "- Assurez-vous que vos pilotes USB sont à jour via le Gestionnaire de périphériques."
+        
+        if ($activePowerPlan -match "Économie|Power saver") {
+            $recommendations += "- Votre plan d'alimentation actuel peut limiter les performances USB. Envisagez de passer à un plan 'Performances élevées'."
         }
         
-        Write-Host " - Évitez de connecter trop de périphériques sur le même contrôleur" -ForegroundColor Cyan
-        Write-Host " - Utilisez un hub USB alimenté pour les périphériques gourmands en énergie" -ForegroundColor Cyan
+        $recommendations | Out-File -FilePath $reportFile -Append
+        
+        # Finaliser le rapport
+        "" | Out-File -FilePath $reportFile -Append
+        "=== FIN DU RAPPORT ===" | Out-File -FilePath $reportFile -Append
+        
+        Write-Host "`nDiagnostic terminé avec succès!" -ForegroundColor Green
+        Write-Host "Le rapport a été enregistré dans: $reportFile" -ForegroundColor Cyan
+        
+        # Proposer d'ouvrir le rapport
+        $openReport = Read-Host "Voulez-vous ouvrir le rapport maintenant? (O/N)"
+        if ($openReport -eq "O" -or $openReport -eq "o") {
+            Invoke-Item $reportFile
+        }
         
     } catch {
-        Write-Host "Erreur lors de la vérification des performances du contrôleur USB: $_" -ForegroundColor Red
+        Write-Host "Erreur lors de l'exécution du diagnostic: $_" -ForegroundColor Red
+        "ERREUR LORS DU DIAGNOSTIC: $_" | Out-File -FilePath $reportFile -Append
     }
     
-    Write-Host
     Read-Host "Appuyez sur Entrée pour continuer"
 }
 
@@ -426,27 +443,27 @@ function Run-CompleteDiagnostic {
     Write-Host "Un rapport sera créé sur votre bureau: $reportFile" -ForegroundColor Yellow
     
     # Créer le fichier de rapport
-    "=== RAPPORT DE DIAGNOSTIC USB - $timestamp ===" | Out-File -FilePath $reportFile
+    "=== RAPPORT DE DIAGNOSTIC USB - $timestamp ===" | Out-File -FilePath $reportFile -Append
     "" | Out-File -FilePath $reportFile -Append
     
     try {
         Write-Host "1. Collecte des informations système..." -ForegroundColor Yellow
-        "-- INFORMATIONS SYSTÈME --" | Out-File -FilePath $reportFile -Append
+        "-- INFORMATIONS SYSTEME --" | Out-File -FilePath $reportFile -Append
         $systemInfo = Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, OsHardwareAbstractionLayer
         $systemInfo | Format-List | Out-String | Out-File -FilePath $reportFile -Append
         
         Write-Host "2. Analyse des contrôleurs USB..." -ForegroundColor Yellow
-        "-- CONTRÔLEURS USB --" | Out-File -FilePath $reportFile -Append
+        "-- CONTROLEURS USB --" | Out-File -FilePath $reportFile -Append
         $usbControllers = Get-WmiObject -Class Win32_USBController
         $usbControllers | Format-List Name, DeviceID, Status, Manufacturer | Out-String | Out-File -FilePath $reportFile -Append
         
         Write-Host "3. Analyse des périphériques USB..." -ForegroundColor Yellow
-        "-- PÉRIPHÉRIQUES USB --" | Out-File -FilePath $reportFile -Append
+        "-- PERIPHERIQUES USB --" | Out-File -FilePath $reportFile -Append
         $usbDevices = Get-PnpDevice -Class USB
         $usbDevices | Format-Table FriendlyName, Status, InstanceId -AutoSize | Out-String | Out-File -FilePath $reportFile -Append
         
         Write-Host "4. Recherche des périphériques problématiques..." -ForegroundColor Yellow
-        "-- PÉRIPHÉRIQUES PROBLÉMATIQUES --" | Out-File -FilePath $reportFile -Append
+        "-- PÉRIPHÉRIQUES PROBLEMATIQUES --" | Out-File -FilePath $reportFile -Append
         $problemDevices = $usbDevices | Where-Object { $_.Status -ne "OK" }
         if ($problemDevices.Count -gt 0) {
             $problemDevices | Format-Table FriendlyName, Status, InstanceId -AutoSize | Out-String | Out-File -FilePath $reportFile -Append
@@ -478,12 +495,10 @@ function Run-CompleteDiagnostic {
         if ($problemDevices.Count -gt 0) {
             $recommendations += "- Réinitialisez les périphériques problématiques détectés."
         }
-        
         $usb3Controllers = $usbControllers | Where-Object { $_.Name -match "3\.0|3\.1|3\.2|SuperSpeed" }
         if ($usb3Controllers.Count -gt 0) {
             $recommendations += "- Pour les transferts rapides, utilisez les ports USB 3.0/3.1/3.2 (généralement de couleur bleue)."
         }
-        
         $recommendations += "- Évitez de connecter trop de périphériques sur le même contrôleur USB."
         $recommendations += "- Utilisez un hub USB alimenté pour les périphériques gourmands en énergie."
         $recommendations += "- Assurez-vous que vos pilotes USB sont à jour via le Gestionnaire de périphériques."
