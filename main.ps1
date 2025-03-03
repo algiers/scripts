@@ -77,7 +77,8 @@ do {
                         Where-Object { $_.Name -ne "main.ps1" } | 
                         Select-Object -ExpandProperty FullName
 
-    Show-ScriptMenu ($availableScripts | ForEach-Object { Split-Path $_ -Leaf })
+    $scriptNames = $availableScripts | ForEach-Object { Split-Path $_ -Leaf }
+    Show-ScriptMenu $scriptNames
 
     try {
         $choice = Read-Host "Enter script number (Q to quit, U to update)"
