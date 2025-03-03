@@ -77,6 +77,12 @@ do {
                         Where-Object { $_.Name -ne "main.ps1" } | 
                         Select-Object -ExpandProperty FullName
 
+    if ($availableScripts.Count -eq 0) {
+        Write-Host "No scripts available. Please update the scripts using option 'U'." -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
+        continue
+    }
+
     $scriptNames = $availableScripts | ForEach-Object { Split-Path $_ -Leaf }
     Show-ScriptMenu $scriptNames
 
@@ -97,20 +103,19 @@ do {
                     $choiceNum = [int]$choice
                     if ($choiceNum -ge 1 -and $choiceNum -le $availableScripts.Count) {
                         $scriptPath = $availableScripts[$choiceNum - 1]
-                        # Ensure we're using the full path that was retrieved earlier
 
-                        if (Test-Path $scriptPath) {
-                            Write-Host "Executing: $(Split-Path $scriptPath -Leaf)" -ForegroundColor Cyan
-                            $arguments = Read-Host "Enter script arguments (e.g., -Param1 Value1), or press Enter to run without arguments"
-
-                            if ($arguments) {
-                                # Using Start-Process for better isolation
-                                Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" $arguments" -Wait
-                            } else {
-                                Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`"" -Wait
-                            }
-                        } else {
+                        if (-not (Test-Path $scriptPath)) {
                             Write-Host "Script not found: $scriptPath" -ForegroundColor Red
+                            continue
+                        }
+
+                        Write-Host "Executing: $(Split-Path $scriptPath -Leaf)" -ForegroundColor Cyan
+                        $arguments = Read-Host "Enter script arguments (e.g., -Param1 Value1), or press Enter to run without arguments"
+
+                        if ($arguments) {
+                            Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" $arguments" -Wait
+                        } else {
+                            Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`"" -Wait
                         }
                     } else {
                         Write-Host "Invalid selection." -ForegroundColor Yellow
