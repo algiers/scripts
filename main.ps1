@@ -120,12 +120,16 @@ do {
                         $scriptPathQuoted = """$scriptPath"""
                         
                         try {
+                            # Use direct script invocation with the call operator instead of Start-Process
                             if ($arguments) {
-                                Write-Host "Running: powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPathQuoted $arguments" -ForegroundColor Gray
-                                Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File $scriptPathQuoted $arguments" -Wait
+                                Write-Host "Running: & $scriptPath $arguments" -ForegroundColor Gray
+                                # Create a scriptblock from the command and invoke it
+                                $scriptBlock = [ScriptBlock]::Create("& '$scriptPath' $arguments")
+                                Invoke-Command -ScriptBlock $scriptBlock
                             } else {
-                                Write-Host "Running: powershell.exe -NoProfile -ExecutionPolicy Bypass -File $scriptPathQuoted" -ForegroundColor Gray
-                                Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File $scriptPathQuoted" -Wait
+                                Write-Host "Running: & $scriptPath" -ForegroundColor Gray
+                                # Direct invocation with call operator
+                                & $scriptPath
                             }
                         } catch {
                             Write-Host "Error executing script: $($_.Exception.Message)" -ForegroundColor Red
