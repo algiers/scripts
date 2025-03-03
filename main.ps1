@@ -76,6 +76,9 @@ do {
     $availableScripts = Get-ChildItem -Path "$scriptsLocalPath" -Filter "*.ps1" | 
                         Where-Object { $_.Name -ne "main.ps1" } | 
                         Select-Object -ExpandProperty FullName
+    
+    # Ensure we have valid script paths
+    $availableScripts = $availableScripts | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }
 
     if ($availableScripts.Count -eq 0) {
         Write-Host "No scripts available. Please update the scripts using option 'U'." -ForegroundColor Yellow
@@ -102,7 +105,19 @@ do {
                 if ([int]::TryParse($choice, [ref]$null)) {
                     $choiceNum = [int]$choice
                     if ($choiceNum -ge 1 -and $choiceNum -le $availableScripts.Count) {
-                        $scriptPath = $availableScripts[$choiceNum - 1]
+                        # Ensure we're getting a valid path from the array
+                        if ($availableScripts -is [array]) {
+                            $scriptPath = $availableScripts[$choiceNum - 1]
+                        } else {
+                            # Handle case where $availableScripts is not an array
+                            $scriptPath = $availableScripts
+                        }
+                        
+                        # Ensure the path is a string and not empty
+                        if ([string]::IsNullOrEmpty($scriptPath)) {
+                            Write-Host "Error: Invalid script path selected." -ForegroundColor Red
+                            continue
+                        }
 
                         # Enhanced path validation and error logging
                         Write-Host "Debug - Script path: $scriptPath" -ForegroundColor Gray
