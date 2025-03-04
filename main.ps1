@@ -1,30 +1,39 @@
 # main.ps1
 
 # --- Configuration ---
-$repoUrl = "https://github.com/algiers/scripts.git"
+$repoBaseUrl = "https://raw.githubusercontent.com/algiers/scripts/main"
 $scriptsLocalPath = "$env:TEMP\ChifaPlusScripts"
 $ErrorActionPreference = "Stop"
 
 # --- Helper Functions ---
-function Test-GitInstalled {
+function Get-ScriptsList {
     try {
-        $null = git --version
-        return $true
+        # Get the list of available scripts from the repository
+        $readmeUrl = "$repoBaseUrl/README.md"
+        $readme = Invoke-WebRequest -Uri $readmeUrl -UseBasicParsing -ErrorAction Stop
+        
+        # Extract script names from README.md (assuming they're listed with .ps1 extension)
+        $scriptNames = [regex]::Matches($readme.Content, '\b[\w-]+\.ps1\b') | 
+                      Where-Object { $_.Value -ne "main.ps1" } | 
+                      ForEach-Object { $_.Value } | 
+                      Sort-Object -Unique
+        
+        return $scriptNames
     }
     catch {
-        Write-Host "Git is not installed. Please install Git before running this script." -ForegroundColor Red
-        return $false
+        Write-Host "Failed to retrieve scripts list: $($_.Exception.Message)" -ForegroundColor Red
+        # Fallback to a basic list if we can't get it from README
+        return @("diagnosticUSB.ps1")
     }
 }
 
 function Update-Scripts {
-    Write-Host "Updating scripts from $repoUrl..."
+    Write-Host "Downloading scripts from GitHub repository..." -ForegroundColor Cyan
+    
+    # Create scripts directory if it doesn't exist
     if (-not (Test-Path $scriptsLocalPath)) {
         New-Item -ItemType Directory -Path $scriptsLocalPath -Force | Out-Null
-    }
-    
-    if (-not (Test-GitInstalled)) {
-        exit 1
+        Write-Host "Created scripts directory at $scriptsLocalPath" -ForegroundColor Yellow
     }
 
     try {
@@ -34,42 +43,55 @@ function Update-Scripts {
             # Force garbage collection to release any file handles
             [System.GC]::Collect()
             [System.GC]::WaitForPendingFinalizers()
+        }
+        
+        # Get list of scripts to download
+        $scriptsList = Get-ScriptsList
+        
+        # Always include main.ps1 in the download list
+        if ($scriptsList -notcontains "main.ps1") {
+            $scriptsList += "main.ps1"
+        }
+        
+        # Download each script
+        $updatedCount = 0
+        foreach ($scriptName in $scriptsList) {
+            $scriptUrl = "$repoBaseUrl/$scriptName"
+            $localPath = Join-Path $scriptsLocalPath $scriptName
             
-            # Get existing script files before update
-            $existingFiles = Get-ChildItem -Path $scriptsLocalPath -Filter "*.ps1" -File | Select-Object -ExpandProperty FullName
+            Write-Host "Downloading $scriptName..." -ForegroundColor Yellow
+            try {
+                # Download the script
+                Invoke-WebRequest -Uri $scriptUrl -OutFile $localPath -UseBasicParsing -ErrorAction Stop
+                $updatedCount++
+            }
+            catch {
+                Write-Host "Failed to download $scriptName: $($_.Exception.Message)" -ForegroundColor Red
+            }
         }
         
-        # Configure Git safe directory
-        git config --global --add safe.directory $scriptsLocalPath
-        
-        Push-Location $scriptsLocalPath
-
-        if (Test-Path .git) {
-            # Force clean any local changes to ensure clean update
-            git reset --hard HEAD
-            git clean -fd
-            # Pull latest changes with allow-unrelated-histories flag to handle disconnected repositories
-            git pull origin main --allow-unrelated-histories
-        } else {
-            git clone $repoUrl .
+        # Also download README.md for reference
+        try {
+            $readmeUrl = "$repoBaseUrl/README.md"
+            $readmePath = Join-Path $scriptsLocalPath "README.md"
+            Invoke-WebRequest -Uri $readmeUrl -OutFile $readmePath -UseBasicParsing -ErrorAction Stop
         }
-        
-        # Verify file updates were successful
-        $updatedFiles = Get-ChildItem -Path $scriptsLocalPath -Filter "*.ps1" -File | Select-Object -ExpandProperty FullName
-        $updatedCount = ($updatedFiles | Where-Object { $existingFiles -notcontains $_ }).Count + 
-                       ($existingFiles | Where-Object { $updatedFiles -notcontains $_ }).Count
+        catch {
+            Write-Host "Failed to download README.md: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
         
         if ($updatedCount -gt 0) {
-            Write-Host "$updatedCount files were added or replaced." -ForegroundColor Green
+            Write-Host "$updatedCount scripts were downloaded or updated." -ForegroundColor Green
+        }
+        else {
+            Write-Host "No scripts were updated. Check your internet connection." -ForegroundColor Red
         }
         
-        Write-Host "Scripts updated successfully." -ForegroundColor Green
+        Write-Host "Scripts update completed." -ForegroundColor Green
     }
     catch {
         Write-Host "Failed to update scripts: $($_.Exception.Message)" -ForegroundColor Red
-    }
-    finally {
-        Pop-Location
+        Write-Host "Full error details: $($_)" -ForegroundColor Yellow
     }
 }
 
