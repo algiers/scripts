@@ -66,7 +66,7 @@ function Update-Scripts {
                 $updatedCount++
             }
             catch {
-                Write-Host "Failed to download $scriptName: $($_.Exception.Message)" -ForegroundColor Red
+                Write-Host "Failed to download $($scriptName): $($_.Exception.Message)" -ForegroundColor Red
             }
         }
         
